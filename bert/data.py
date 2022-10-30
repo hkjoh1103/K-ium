@@ -15,8 +15,8 @@ class Datasets(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx):
-        text = self.df.iloc[idx, 1][:300]
-        label = self.df.iloc[idx, 0] - 1
+        text = self.df.iloc[idx, 0]
+        label = self.df.iloc[idx, 1]
         return text, label
 
 def DataPreprocessing(config):
@@ -24,7 +24,7 @@ def DataPreprocessing(config):
     data_dir = config.data_dir
     batch_size = config.batch_size
     
-    df = pd.read_csv(data_fn, conding='utf-8')
+    df = pd.read_csv(data_fn, encoding='utf-8')
     df = df.iloc[:, 1:3]
     
     train_set, valid_set = train_test_split(df, test_size=0.2, shuffle=True, random_state=221030)
