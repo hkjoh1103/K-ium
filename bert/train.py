@@ -77,10 +77,16 @@ def train(config):
 
     #Get tokenizer
     tokenizer = BertTokenizer.from_pretrained(model)
+    '''
+    Huggingface에서 beomi/kcbert-base 모델을 사용했습니다.
+    '''
     
     #Get model
     model = BertForSequenceClassification.from_pretrained(model, num_labels=2)
     model.to(device)
+    '''
+    Huggingface에서 beomi/kcbert-base 모델을 사용했습니다.
+    '''
     
     #Set optimizer and criterion
     opt = optim.Adam(model.parameters(), lr=lr)
@@ -174,3 +180,92 @@ def train(config):
   
     save_metrics(os.path.join(result_dir, 'metrics.pt'),valid_accuracy_list, train_loss_list, valid_loss_list, epoch_list)
     print('훈련 종료!')
+    
+#%%
+# evaluation function
+def test(config):
+    #Get arguments
+    mode = config.mode
+    model = config.model
+    
+    data_fn = config.data_fn
+    data_dir = config.data_dir
+    ckpt_dir = config.ckpt_dir
+    log_dir = config.log_dir
+    result_dir = config.result_dir
+    
+    lr = config.lr
+    batch_size = config.batch_size
+    num_epoch = config.num_epoch
+    
+    max_length = config.max_length
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    print('\n ||evaluation mode|| \n')
+    
+    #Plot training and validation logs
+    valid_accuracy_list, train_loss_list, valid_loss_list, epoch_list = load_metrics(os.path.join(result_dir, 'metrics.pt'))
+    plt.figure(figsize=(15,5))
+    plt.plot(epoch_list, train_loss_list, label='Train')
+    plt.plot(epoch_list, valid_loss_list, label='Valid')
+    plt.xlabel('epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(os.path.join(result_dir, 'loss_curve.png'))
+    
+    plt.figure(figsize=(15,5))
+    plt.plot(epoch_list, valid_accuracy_list, label='Accuracy')
+    plt.xlabel('epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.savefig(os.path.join(result_dir, 'accuracy_curve.png'))
+
+    #Get dataset and loader
+    test_set = pd.read_csv(os.path.join(data_dir, 'split', 'test.csv'), encoding='utf-8')
+    test_set = test_set.fillna('NaN')
+    test_set = Datasets(test_set)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, num_workers=2)
+    
+    #Get tokenizer
+    tokenizer = BertTokenizer.from_pretrained(model)
+    
+    #Get model
+    model = BertForSequenceClassification.from_pretrained(model, num_labels=2)
+    model = model.to(device)
+    
+    #Load best model
+    load_checkpoint(os.path.join(ckpt_dir, 'model.pt'), model)
+    
+    #evaluation loop
+    logit = []
+    y_pred = []
+    y_true = []
+
+    model.eval()
+    with torch.no_grad():
+        for text, label in test_loader:
+            encoded_list = [tokenizer.encode(t, add_special_tokens=True, max_length=300) for t in text]
+            padded_list =  [e + [0] * (300-len(e)) for e in encoded_list]
+        
+            sample = torch.tensor(padded_list)
+            labels = label
+            sample, labels = sample.to(device), labels.to(device)
+            output = model(sample, labels=labels)
+            output = output.logits
+            
+            logit.extend(output[:, -1].tolist())
+            y_pred.extend(torch.argmax(F.softmax(output), dim=1).tolist())
+            y_true.extend(labels.tolist())
+        
+        AUROC_score = roc_auc_score(y_true, y_pred)
+        fprs, tprs, thresholds = roc_curve(y_true, logit)
+        
+    plt.figure(figsize=(15,5))
+    plt.plot([0,1],[0,1])
+    plt.plot(fprs, tprs, label='AUROC = %.6f' %AUROC_score)
+    plt.xlabel('FPR')
+    plt.ylabel('TPR')
+    plt.legend()
+    plt.grid()
+    plt.savefig(os.path.join(result_dir, 'ROC.png'))

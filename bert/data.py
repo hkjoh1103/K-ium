@@ -16,7 +16,7 @@ class Datasets(Dataset):
 
     def __getitem__(self, idx):
         text = self.df.iloc[idx, 0]
-        label = self.df.iloc[idx, 1]
+        label = int(self.df.iloc[idx, 1])
         return text, label
 
 def DataPreprocessing(config):
@@ -24,10 +24,24 @@ def DataPreprocessing(config):
     data_dir = config.data_dir
     batch_size = config.batch_size
     
-    df = pd.read_csv(data_fn, encoding='utf-8')
-    df = df.iloc[:, 1:3]
+    split_dir = os.path.join(data_dir, 'split')
     
-    train_set, valid_set = train_test_split(df, test_size=0.2, shuffle=True, random_state=221030)
+    if not os.path.exists(split_dir):
+        os.makedirs(split_dir)
+        
+        df = pd.read_csv(data_fn, encoding='utf-8')
+        df = df.iloc[:, 1:3]
+        
+        train_set, test_set = train_test_split(df, test_size=0.1, shuffle=True, random_state=221030)
+        
+        train_set.to_csv(os.path.join(split_dir, 'train.csv'), encoding='utf-8', index=False)
+        test_set.to_csv(os.path.join(split_dir, 'test.csv'), encoding='utf-8', index=False)
+        
+    else:
+        train_set = pd.read_csv(os.path.join(split_dir, 'train.csv'), encoding='utf-8')
+    
+    train_set, valid_set = train_test_split(train_set, test_size=0.1, shuffle=True, random_state=221030)
+    
     train_set = Datasets(train_set)
     valid_set = Datasets(valid_set)
     
