@@ -8,7 +8,7 @@ from bert.train import *
 # Parser generation
 parser = argparse.ArgumentParser(description="BERT", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument('--mode', default='train', choices=['train', 'test'], type=str, dest='mode')
+parser.add_argument('--mode', default='train', choices=['train', 'validation', 'test'], type=str, dest='mode')
 parser.add_argument('--model', default='beomi/kcbert-base', type=str, dest='model')
 '''
 Huggingface에서 beomi/kcbert-base 모델을 사용했습니다.

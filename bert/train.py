@@ -183,7 +183,7 @@ def train(config):
     
 #%%
 # evaluation function
-def test(config):
+def validation(config):
     #Get arguments
     mode = config.mode
     model = config.model
@@ -202,7 +202,7 @@ def test(config):
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    print('\n ||evaluation mode|| \n')
+    print('\n ||validation mode|| \n')
     
     #Plot training and validation logs
     valid_accuracy_list, train_loss_list, valid_loss_list, epoch_list = load_metrics(os.path.join(result_dir, 'metrics.pt'))
@@ -253,6 +253,75 @@ def test(config):
             sample, labels = sample.to(device), labels.to(device)
             output = model(sample, labels=labels)
             output = output.logits
+            
+            logit.extend(output[:, -1].tolist())
+            y_pred.extend(torch.argmax(F.softmax(output), dim=1).tolist())
+            y_true.extend(labels.tolist())
+        
+        AUROC_score = roc_auc_score(y_true, y_pred)
+        fprs, tprs, thresholds = roc_curve(y_true, logit)
+        
+    plt.figure(figsize=(15,5))
+    plt.plot([0,1],[0,1])
+    plt.plot(fprs, tprs, label='AUROC = %.6f' %AUROC_score)
+    plt.xlabel('FPR')
+    plt.ylabel('TPR')
+    plt.legend()
+    plt.grid()
+    plt.savefig(os.path.join(result_dir, 'ROC.png'))
+    
+def test(config):
+    #Get arguments
+    mode = config.mode
+    model = config.model
+    
+    data_fn = config.data_fn
+    data_dir = config.data_dir
+    ckpt_dir = config.ckpt_dir
+    log_dir = config.log_dir
+    result_dir = config.result_dir
+    
+    lr = config.lr
+    batch_size = config.batch_size
+    num_epoch = config.num_epoch
+    
+    max_length = config.max_length
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    print('\n ||test mode|| \n')
+
+    #Get dataset and loader
+    test_loader = DataPreprocessing(config)
+    
+    #Get tokenizer
+    tokenizer = BertTokenizer.from_pretrained(model)
+    
+    #Get model
+    model = BertForSequenceClassification.from_pretrained(model, num_labels=2)
+    model = model.to(device)
+    
+    #Load best model
+    load_checkpoint(os.path.join(ckpt_dir, 'model.pt'), model)
+    
+    #evaluation loop
+    logit = []
+    y_pred = []
+    y_true = []
+
+    model.eval()
+    with torch.no_grad():
+        for text, label in test_loader:
+            encoded_list = [tokenizer.encode(t, add_special_tokens=True, max_length=300) for t in text]
+            padded_list =  [e + [0] * (300-len(e)) for e in encoded_list]
+        
+            sample = torch.tensor(padded_list)
+            labels = label
+            sample, labels = sample.to(device), labels.to(device)
+            output = model(sample, labels=labels)
+            output = output.logits
+            
+            print(output)
             
             logit.extend(output[:, -1].tolist())
             y_pred.extend(torch.argmax(F.softmax(output), dim=1).tolist())

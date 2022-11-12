@@ -20,32 +20,59 @@ class Datasets(Dataset):
         return text, label
 
 def DataPreprocessing(config):
-    data_fn = config.data_fn
-    data_dir = config.data_dir
-    batch_size = config.batch_size
+    if config.mode == 'train':
+        data_fn = config.data_fn
+        data_dir = config.data_dir
+        batch_size = config.batch_size
+        
+        split_dir = os.path.join(data_dir, 'split')
+        
+        if not os.path.exists(split_dir):
+            os.makedirs(split_dir)
+            
+            df = pd.read_csv(data_fn, encoding='utf-8')
+            df = df.iloc[:, 1:3]
+            
+            train_set, test_set = train_test_split(df, test_size=0.1, shuffle=True, random_state=221030)
+            
+            train_set.to_csv(os.path.join(split_dir, 'train.csv'), encoding='utf-8', index=False)
+            test_set.to_csv(os.path.join(split_dir, 'test.csv'), encoding='utf-8', index=False)
+            
+        else:
+            train_set = pd.read_csv(os.path.join(split_dir, 'train.csv'), encoding='utf-8')
+        
+        train_set, valid_set = train_test_split(train_set, test_size=0.1, shuffle=True, random_state=221030)
+        
+        train_set = Datasets(train_set)
+        valid_set = Datasets(valid_set)
+        
+        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2)
+        valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=True, num_workers=2)
+        
+        return train_loader, valid_loader
     
-    split_dir = os.path.join(data_dir, 'split')
+    elif config.mode == 'test':
+        data_fn = config.data_fn
+        data_dir = config.data_dir
+        batch_size = config.batch_size
+        
+        test_dir = os.path.join(data_dir, 'test')
+        
+        if not os.path.exists(test_dir):
+            os.makedirs(test_dir)
+            
+            df = pd.read_csv(data_fn, encoding='utf-8')
+            df = df.iloc[:, 1:3]
+            
+            df.to_csv(os.path.join(test_dir, 'test.csv'), encoding='utf-8', index=False)
+        
+        test_set = pd.read_csv(os.path.join(test_dir, 'test.csv'), encoding='utf-8')
+        
+        test_set = Datasets(test_set)
+        
+        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, num_workers=2)
+        
+        return test_loader
     
-    if not os.path.exists(split_dir):
-        os.makedirs(split_dir)
-        
-        df = pd.read_csv(data_fn, encoding='utf-8')
-        df = df.iloc[:, 1:3]
-        
-        train_set, test_set = train_test_split(df, test_size=0.1, shuffle=True, random_state=221030)
-        
-        train_set.to_csv(os.path.join(split_dir, 'train.csv'), encoding='utf-8', index=False)
-        test_set.to_csv(os.path.join(split_dir, 'test.csv'), encoding='utf-8', index=False)
-        
     else:
-        train_set = pd.read_csv(os.path.join(split_dir, 'train.csv'), encoding='utf-8')
-    
-    train_set, valid_set = train_test_split(train_set, test_size=0.1, shuffle=True, random_state=221030)
-    
-    train_set = Datasets(train_set)
-    valid_set = Datasets(valid_set)
-    
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2)
-    valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=True, num_workers=2)
-    
-    return train_loader, valid_loader
+        print('MODE ERROR')
