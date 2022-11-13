@@ -1,3 +1,4 @@
+main.py
 # %%
 # import library
 import argparse
@@ -33,6 +34,8 @@ config = parser.parse_args()
 if __name__ == "__main__":
     if config.mode == 'train':
         train(config)
+    elif config.mode == 'validation':
+        validation(config)
     elif config.mode == 'test':
         test(config)
     else:

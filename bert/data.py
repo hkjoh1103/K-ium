@@ -1,3 +1,4 @@
+data.py
 # %%
 # Import library
 from sklearn.model_selection import train_test_split
@@ -41,6 +42,7 @@ def DataPreprocessing(config):
         else:
             train_set = pd.read_csv(os.path.join(split_dir, 'train.csv'), encoding='utf-8')
         
+        train_set = train_set.fillna('NaN')
         train_set, valid_set = train_test_split(train_set, test_size=0.1, shuffle=True, random_state=221030)
         
         train_set = Datasets(train_set)
@@ -63,14 +65,16 @@ def DataPreprocessing(config):
             
             df = pd.read_csv(data_fn, encoding='utf-8')
             df = df.iloc[:, 1:3]
+            df = df.fillna('NaN')
             
             df.to_csv(os.path.join(test_dir, 'test.csv'), encoding='utf-8', index=False)
         
         test_set = pd.read_csv(os.path.join(test_dir, 'test.csv'), encoding='utf-8')
+        test_set = test_set.fillna('NaN')
         
         test_set = Datasets(test_set)
         
-        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, num_workers=2)
+        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=2)
         
         return test_loader
     

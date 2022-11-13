@@ -1,3 +1,4 @@
+train.py
 # %%
 # Import library
 import random
@@ -222,7 +223,7 @@ def validation(config):
     plt.savefig(os.path.join(result_dir, 'accuracy_curve.png'))
 
     #Get dataset and loader
-    test_set = pd.read_csv(os.path.join(data_dir, 'split', 'test.csv'), encoding='utf-8')
+    test_set = pd.read_csv(os.path.join(data_dir, 'split', 'test.csv'), encoding='utf-8', na_values=[''])
     test_set = test_set.fillna('NaN')
     test_set = Datasets(test_set)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -311,8 +312,9 @@ def test(config):
 
     model.eval()
     with torch.no_grad():
+        print('\n||evaluation start||\n')
         for text, label in test_loader:
-            encoded_list = [tokenizer.encode(t, add_special_tokens=True, max_length=300) for t in text]
+            encoded_list = [tokenizer.encode(t, add_special_tokens=True, max_length=300, truncation=True) for t in text]
             padded_list =  [e + [0] * (300-len(e)) for e in encoded_list]
         
             sample = torch.tensor(padded_list)
@@ -320,11 +322,12 @@ def test(config):
             sample, labels = sample.to(device), labels.to(device)
             output = model(sample, labels=labels)
             output = output.logits
-            
-            print(output)
+
+            for i in range(len(output)):
+              print('%.4f %.4f' %(F.softmax(output[i], dim=0)[0], F.softmax(output[i], dim=0)[1]))
             
             logit.extend(output[:, -1].tolist())
-            y_pred.extend(torch.argmax(F.softmax(output), dim=1).tolist())
+            y_pred.extend(torch.argmax(F.softmax(output, dim=1), dim=1).tolist())
             y_true.extend(labels.tolist())
         
         AUROC_score = roc_auc_score(y_true, y_pred)
@@ -337,4 +340,4 @@ def test(config):
     plt.ylabel('TPR')
     plt.legend()
     plt.grid()
-    plt.savefig(os.path.join(result_dir, 'ROC.png'))
+    plt.savefig(os.path.join(result_dir, 'ROC_test.png'))
